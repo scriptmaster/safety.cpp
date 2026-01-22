@@ -1,0 +1,23 @@
+---
+Checks: >
+  -*,
+  safety-smartpointer-in-try,
+  safety-foreignpointer-for-c-api,
+  cppcoreguidelines-owning-memory,
+  cppcoreguidelines-no-malloc,
+  bugprone-exception-escape,
+  cert-err58-cpp,
+  concurrency-mt-unsafe
+
+WarningsAsErrors: >
+  safety-smartpointer-in-try,
+  safety-foreignpointer-for-c-api,
+  cppcoreguidelines-owning-memory,
+  bugprone-exception-escape
+
+CheckOptions:
+  - key: safety-foreignpointer-for-c-api.EnforceForeignPointer
+    value: 'true'
+  - key: safety-smartpointer-in-try.RequireTryCatch
+    value: 'true'
+---

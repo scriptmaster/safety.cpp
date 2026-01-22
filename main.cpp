@@ -6,6 +6,7 @@
 Checks: >
   -*,
   safety-smartpointer-in-try,
+  safety-foreignpointer-for-c-api,
   cppcoreguidelines-owning-memory,
   cppcoreguidelines-no-malloc,
   bugprone-exception-escape,
@@ -14,6 +15,7 @@ Checks: >
 
 WarningsAsErrors: >
   safety-smartpointer-in-try,
+  safety-foreignpointer-for-c-api,
   cppcoreguidelines-owning-memory,
   bugprone-exception-escape
 
@@ -34,6 +36,11 @@ clang++ -std=c++20 -g -fsanitize=address,undefined main.cpp
 #include <thread>
 #include <atomic>
 #include <stdexcept>
+#include <cstdio>
+#include <cstdlib>
+
+// Include the ForeignPointer header
+#include "safety/foreign_pointer.h"
 
 //
 // =======================
@@ -185,12 +192,40 @@ void destroySampleResource(SampleResource* r) {
 
 //
 // =======================
+// C API RESOURCE DEMO
+// =======================
+//
+
+// Example deleter for FILE* (C API handle)
+struct FileDeleter {
+    void operator()(FILE* f) const noexcept {
+        if (f) {
+            std::cout << "[close] FILE handle\n";
+            fclose(f);
+        }
+    }
+};
+
+// Example deleter for a hypothetical C API context
+struct CApiContextDeleter {
+    void operator()(void* ctx) const noexcept {
+        if (ctx) {
+            std::cout << "[free] C API context\n";
+            // In a real scenario: c_api_destroy(ctx);
+            free(ctx);
+        }
+    }
+};
+
+//
+// =======================
 // WORKER THREAD (NO-THROW)
 // =======================
 //
 
 void workerThread(std::atomic<bool>& running) {
     safety::SafeScope scope; // NO exceptions allowed here
+    (void)scope; // Mark as intentionally unused
 
     while (running.load()) {
         safety::SafePointer<int> value(new int(42));
@@ -207,6 +242,7 @@ void workerThread(std::atomic<bool>& running) {
 
 int main() {
     safety::SafeBoundary boundary; // exception boundary
+    (void)boundary; // Mark as intentionally unused
 
     try {
         std::cout << "=== SmartPointer demo ===\n";
@@ -222,6 +258,29 @@ int main() {
         auto result = safety::SafeResultPointer<int>::success(new int(99));
         if (result.ok()) {
             std::cout << "SafeResultPointer value=" << *result.get() << "\n";
+        }
+
+        std::cout << "\n=== ForeignPointer demo (C API handles) ===\n";
+        // Demo 1: FILE* handle using ForeignPointer
+        {
+            safety::ForeignPointer<FILE, FileDeleter> file(
+                fopen("/tmp/test_safety.txt", "w")
+            );
+            if (file) {
+                std::cout << "FILE* opened successfully\n";
+                fprintf(file.get(), "ForeignPointer test\n");
+                // file automatically closed when going out of scope
+            }
+        }
+
+        // Demo 2: C API context (simulated)
+        {
+            void* ctx = malloc(64); // Simulating c_api_create()
+            safety::ForeignPointer<void, CApiContextDeleter> context(ctx);
+            if (context) {
+                std::cout << "C API context created successfully\n";
+                // context automatically freed when going out of scope
+            }
         }
 
         std::cout << "\n=== Worker thread demo ===\n";

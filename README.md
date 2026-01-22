@@ -59,19 +59,22 @@ void worker() {
 
 ### 2. Pointer Types
 
-This framework defines **exactly three ownership patterns**.
+This framework defines **exactly four ownership patterns**.
 
 #### `SafePointer<T>`
+- **For application-level objects**
 - No exceptions
 - RAII ownership
 - Used in workers, loops, realtime code
 
 #### `SafeResultPointer<T>`
+- **For application-level objects with explicit error handling**
 - Go-style error handling
 - Explicit success / failure
 - No exceptions
 
 #### `SmartPointer<T>`
+- **For startup-only, throwing initialization**
 - Throws on construction
 - **ONLY allowed inside `try/catch`**
 - Enforced by clang-tidy
@@ -82,6 +85,23 @@ try {
 } catch (...) {
     // mandatory
 }
+```
+
+#### `ForeignPointer<T, Deleter>`
+- **REQUIRED for owned C / FFI / GPU / OS handles**
+- Replaces `std::unique_ptr` for foreign resources
+- No exceptions
+- Custom deleter for cleanup
+- **DO NOT use SafePointer or SmartPointer for C API handles**
+
+```cpp
+struct FileDeleter {
+    void operator()(FILE* f) const noexcept {
+        if (f) fclose(f);
+    }
+};
+
+safety::ForeignPointer<FILE, FileDeleter> file(fopen("data.txt", "r"));
 ```
 
 ---
@@ -95,6 +115,8 @@ Enforced by tooling:
 - Exceptions inside worker threads
 - `SmartPointer` outside `try/catch`
 - Silent resource failures
+- `std::unique_ptr` for C / FFI / GPU / OS handles (use `ForeignPointer` instead)
+- `SafePointer` or `SmartPointer` for C API handles
 - “Best effort” safety
 
 If it compiles, it is safe by construction.
@@ -125,6 +147,7 @@ A `.clang-tidy` file is required at repo root.
 
 The framework relies on:
 - Custom rule: `safety-smartpointer-in-try`
+- Custom rule: `safety-foreignpointer-for-c-api`
 - Core C++ safety rules
 - Warnings treated as **errors**
 
@@ -139,6 +162,7 @@ If rules are violated → **build fails**.
 ├─ safety/
 │  ├─ smart_pointer.h
 │  ├─ safe_scope.h
+│  ├─ foreign_pointer.h
 │  └─ (other safety primitives)
 │
 ├─ tools/

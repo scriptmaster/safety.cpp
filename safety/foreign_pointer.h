@@ -37,10 +37,11 @@ public:
     explicit operator bool() const noexcept { return ptr_ != nullptr; }
 
     void reset(T* ptr = nullptr) noexcept {
-        if (ptr_) {
-            deleter_(ptr_);
-        }
+        T* old = ptr_;
         ptr_ = ptr;
+        if (old && old != ptr) {
+            deleter_(old);
+        }
     }
 
 private:

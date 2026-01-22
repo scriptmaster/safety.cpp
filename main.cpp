@@ -263,23 +263,26 @@ int main() {
         std::cout << "\n=== ForeignPointer demo (C API handles) ===\n";
         // Demo 1: FILE* handle using ForeignPointer
         {
-            safety::ForeignPointer<FILE, FileDeleter> file(
-                fopen("/tmp/test_safety.txt", "w")
-            );
-            if (file) {
+            FILE* raw_file = fopen("/tmp/test_safety.txt", "w");
+            if (raw_file) {
+                safety::ForeignPointer<FILE, FileDeleter> file(raw_file);
                 std::cout << "FILE* opened successfully\n";
                 fprintf(file.get(), "ForeignPointer test\n");
                 // file automatically closed when going out of scope
+            } else {
+                std::cout << "Failed to open FILE*\n";
             }
         }
 
         // Demo 2: C API context (simulated)
         {
             void* ctx = malloc(64); // Simulating c_api_create()
-            safety::ForeignPointer<void, CApiContextDeleter> context(ctx);
-            if (context) {
+            if (ctx) {
+                safety::ForeignPointer<void, CApiContextDeleter> context(ctx);
                 std::cout << "C API context created successfully\n";
                 // context automatically freed when going out of scope
+            } else {
+                std::cout << "Failed to allocate C API context\n";
             }
         }
 

@@ -275,6 +275,9 @@ int main() {
         }
 
         // Demo 2: C API context (simulated)
+        // NOTE: malloc() used here ONLY for demonstration of C API interop
+        // In real code, this would be a C library function like:
+        //   void* ctx = c_api_create_context();
         {
             void* ctx = malloc(64); // Simulating c_api_create()
             if (ctx) {
